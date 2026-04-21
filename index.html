@@ -26,16 +26,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- CONFIGURACIÓN ---
-        // Pega tu clave asegurándote de no dejar espacios en blanco.
-        const API_KEY_RAW = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // REEMPLAZAR AQUÍ
-        
-        // El sistema limpiará espacios accidentales por ti
-        const API_KEY = API_KEY_RAW.trim(); 
-        
-        // ¡CAMBIO CLAVE AQUÍ! Usamos la versión estable y universal de Gemini
-        const MODELO = "gemini-1.5-flash"; 
-
+        // --- DATOS DEL GRÁFICO ---
         const groupedData = [
           {
             category: 'Desempeños de la Especialidad',
@@ -69,43 +60,43 @@
 
         const years = [2021, 2022, 2023, 2024, 2025];
 
-        // --- LLAMADA A LA API (CON DIAGNÓSTICO AVANZADO) ---
-        const askGemini = async (prompt, systemInstruction) => {
-          if (API_KEY === "TU_API_KEY_AQUI" || API_KEY === "") {
-            return "⚠️ Error: Aún no has ingresado tu API Key en el código HTML.";
-          }
-          
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${API_KEY}`;
-          
-          try {
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-              })
-            });
+        // --- TEXTOS PREDEFINIDOS (SIN CONEXIÓN A INTERNET) ---
+        
+        const TEXTO_ANALISIS_GLOBAL = `El análisis de la estructura de 75 exámenes de grado (2021-2025) muestra una sólida base en los **Desempeños de la Especialidad (64%)**, con preguntas analíticas bien logradas en diversas áreas. Esta cifra refleja la profundidad técnica y el compromiso con la excelencia que caracteriza a la labor académica de la Facultad.
 
-            if (!response.ok) {
-              // Atrapar el error exacto de Google
-              let errorMsg = `Error HTTP ${response.status}`;
-              try {
-                const errorData = await response.json();
-                errorMsg = errorData.error?.message || errorMsg;
-              } catch(e) {
-                errorMsg += " (No se pudo decodificar el detalle de Google).";
-              }
-              throw new Error(errorMsg);
-            }
+Sin embargo, se identifica una oportunidad estratégica de enriquecimiento en **Comunicación Efectiva (56%)** y, de manera particular, en **Discernimiento Ético (15%)**. Se sugiere incorporar metodologías evaluativas que exijan fundamentación argumentativa y la anticipación de dilemas éticos reales en escenarios de negocios, alineándose con los estándares globales en la formación de líderes corporativos.`;
 
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
-          } catch (e) {
-            console.error("Detalle del error:", e);
-            return `**⚠️ Error de conexión con Google:**\n\n${e.message}\n\n*Posibles causas:* \n- La API Key es incorrecta o está desactivada.\n- La 'Generative Language API' no está habilitada en tu proyecto de Google Cloud.`;
-          }
+        const TEXTOS_PLANES_MEJORA = {
+            'Uso de Herramientas y Criterios en Contexto Incierto': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Herramientas Ágiles:** Incorporar casos donde la información sea deliberadamente incompleta, forzando al estudiante a justificar sus supuestos.\n\n**Simulación de Crisis:** Plantear escenarios donde las variables críticas cambien a mitad del examen, evaluando la capacidad de re-cálculo y adaptación del criterio financiero.`,
+            
+            // Texto detallado y solicitado específicamente por el usuario
+            'Adaptabilidad a Cambios Económicos': `Se sugieren los siguientes enfoques estratégicos:
+
+**Integración de Escenarios Prospectivos Dinámicos:** Consiste en invitar al estudiante a proyectar soluciones ante variaciones de mercado simuladas en tiempo real. Un excelente punto de partida es el modelo del Examen de Marketing (Otoño 2021), donde se desafió al alumno con la pregunta: *“¿A qué tipo de estrategia de crecimiento corresponde...?”*. Replicar este nivel de análisis permite que el estudiante no solo identifique la teoría, sino que seleccione la ruta estratégica más resiliente frente a la volatilidad económica.
+
+**Evaluación del Impacto Organizacional Multidimensional:** Se propone vincular los cambios macroeconómicos con respuestas operativas concretas de la firma. Un referente de vanguardia es el Examen de RRHH (Verano 2025), cuyo diseño solicitaba: *“Proponga al menos dos objetivos organizacionales...”*. Seguir esta línea de evaluación permite medir la capacidad del futuro profesional para traducir el contexto económico en acciones tácticas y estratégicas que aseguren la sostenibilidad institucional.
+
+Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, representan la base ideal para seguir avanzando hacia los estándares de evaluación más exigentes a nivel global.`,
+            
+            'Análisis de Escenarios para la Toma de Decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Casos de Estudio Multivariables:** Diseñar preguntas que obliguen al estudiante a ponderar múltiples variables financieras y de marketing simultáneamente.\n\n**Defensa de Estrategias:** Evaluar la capacidad de defender una decisión estratégica ante alternativas de inversión competitivas.`,
+            
+            'Análisis de contenido': `Se sugieren los siguientes enfoques estratégicos:\n\n**Diversificación de Instrumentos:** Incorporar de manera progresiva ensayos cortos o propuestas de negocios escritas en secciones específicas del examen.\n\n**Rúbricas de Comunicación:** Evaluar explícitamente la estructura, claridad y capacidad de síntesis en las respuestas de desarrollo extenso.`,
+            
+            'Argumentación': `Se sugieren los siguientes enfoques estratégicos:\n\n**Defensa de Casos:** Integrar instancias donde el estudiante deba justificar teóricamente sus decisiones numéricas.\n\n**Contraste de Posturas:** Solicitar al estudiante que analice y refute una estrategia opuesta a la suya, demostrando dominio de la argumentación en negocios.`,
+            
+            'Producción de discursos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Adaptación de Audiencia:** Pedir al estudiante que estructure su respuesta técnica como si fuera un informe dirigido a un Directorio o a inversionistas no especialistas.\n\n**Uso de Lenguaje Disciplinar:** Fomentar y evaluar la precisión en la terminología técnica de negocios en todas las áreas del examen.`,
+            
+            'Voz propia y creativa': `Se sugieren los siguientes enfoques estratégicos:\n\n**Resolución Creativa de Problemas:** Incluir ítems de final abierto donde se premie la originalidad y la viabilidad de la solución propuesta.\n\n**Propuestas de Innovación:** Evaluar la capacidad de identificar nuevos nichos de mercado o mejoras disruptivas de procesos organizacionales.`,
+            
+            'Delimitación de dilemas éticos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Inclusión de Conflictos de Interés:** Diseñar casos donde el estudiante deba identificar claramente las partes afectadas por una decisión corporativa y los posibles sesgos de los directivos.\n\n**Análisis Normativo vs. Ético:** Preguntar explícitamente por las zonas grises donde lo estrictamente legal no coincide necesariamente con lo ético o lo sostenible.`,
+            
+            'Proyección de significados y consecuencias': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Sostenibilidad:** Incorporar preguntas sobre el impacto ambiental, social y de gobernanza (ESG) a largo plazo de los proyectos de inversión.\n\n**Mapeo de Stakeholders:** Exigir que las respuestas consideren de manera obligatoria las consecuencias operativas para empleados, comunidad y medio ambiente.`,
+            
+            'Integración de componente ético en la toma de decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Dilemas Integrados:** No aislar la dimensión ética en una sola pregunta al final del examen, sino hacer que la viabilidad general del proyecto evaluado dependa de su solidez ética.\n\n**Ponderación Estratégica:** Asignar un porcentaje explícito de la calificación de la sección a la correcta ponderación de los factores éticos involucrados en la toma de decisiones.`
         };
+
+        // Función simuladora para dar el efecto de "procesando" (Delay de medio segundo)
+        const simulateDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         // --- COMPONENTES DE UI ---
         const TextFormatter = ({ text }) => {
@@ -129,7 +120,7 @@
                     <div className="w-full md:w-2/5 pr-4 mb-4 md:mb-0">
                         <h3 className="text-sm font-bold text-slate-700 leading-snug group-hover:text-blue-600 transition-colors">{name}</h3>
                         <button 
-                            onClick={() => onAction(name, values, color)}
+                            onClick={() => onAction(name)}
                             className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
                         >
                             ✨ Plan de Mejora
@@ -166,19 +157,22 @@
             setTimeout(() => setReady(true), 100);
           }, []);
 
+          // Acción simulada para la Síntesis Global
           const generateGlobalReport = async () => {
             setAnalysis({ loading: true, data: null });
-            const prompt = "Genera un resumen ejecutivo de 2 párrafos sobre los datos de compatibilidad AoL de la FEN: Especialidad (64%), Comunicación (56%) y Ética (15%). Sé profesional y sugiere un foco para 2026.";
-            const result = await askGemini(prompt, "Eres un analista de acreditación universitaria de la FEN UCHILE.");
-            setAnalysis({ loading: false, data: result });
+            await simulateDelay(600); // Pequeña pausa para efecto visual
+            setAnalysis({ loading: false, data: TEXTO_ANALISIS_GLOBAL });
           };
 
-          const openActionPlan = async (name, values, color) => {
+          // Acción simulada para los Planes de Mejora Individuales
+          const openActionPlan = async (name) => {
             setModal({ open: true, loading: true, title: name, content: '' });
-            const val = values[values.length - 1];
-            const prompt = `La competencia '${name}' tiene un ${val}% de compatibilidad. Da 3 consejos breves y técnicos para que los docentes mejoren la redacción de sus preguntas de examen en esta área.`;
-            const result = await askGemini(prompt, "Eres un experto en evaluación educativa.");
-            setModal(prev => ({ ...prev, loading: false, content: result }));
+            await simulateDelay(500); // Pequeña pausa para mostrar el spinner
+            
+            // Busca el texto predefinido, si no existe, muestra un mensaje por defecto
+            const contenidoPredefinido = TEXTOS_PLANES_MEJORA[name] || "Plan de mejora en construcción para esta competencia.";
+            
+            setModal(prev => ({ ...prev, loading: false, content: contenidoPredefinido }));
           };
 
           return (
@@ -204,7 +198,7 @@
                   </button>
                 </div>
 
-                {/* Síntesis AI */}
+                {/* Síntesis AI (Ahora con datos predefinidos) */}
                 {analysis.data && (
                   <div className="mx-8 md:mx-12 mt-8 p-8 bg-blue-50 rounded-3xl border border-blue-100 animate-fade-in">
                     <h2 className="text-blue-900 font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
@@ -236,7 +230,7 @@
                 </footer>
               </div>
 
-              {/* MODAL (EL RECUADRO QUE TE GUSTÓ) */}
+              {/* MODAL CON RESPUESTAS PREDEFINIDAS */}
               {modal.open && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                   <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
