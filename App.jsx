@@ -57,26 +57,31 @@ const fetchWithRetry = async (url, options, retries = 5) => {
 };
 
 const callGeminiAPI = async (prompt, systemInstruction) => {
-  // NOTA: Reemplaza las comillas vacías con tu API Key de Google AI Studio
-  const apiKey = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const apiKey = AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM; 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
   
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     systemInstruction: { parts: [{ text: systemInstruction }] }
   };
 
-  const data = await fetchWithRetry(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Ocurrió un inconveniente al procesar la solicitud.";
+  try {
+    const data = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Ocurrió un inconveniente al procesar la solicitud.";
+  } catch (error) {
+    console.error("Error al contactar con la API:", error);
+    return "Error de conexión. Por favor, intenta nuevamente más tarde.";
+  }
 };
 
 // --- COMPONENTES AUXILIARES ---
 const FormattedText = ({ text }) => {
+  if (typeof text !== 'string' || !text) return null;
+  
   return text.split('\n').map((line, i) => {
     if (!line.trim()) return <br key={i} />;
     const parts = line.split(/(\*\*.*?\*\*)/g);
@@ -238,7 +243,7 @@ export default function App() {
         {globalAnalysis.data && (
           <div className="mb-10 bg-[#1E3A8A] p-6 rounded-xl text-white shadow-lg animate-fade-in">
             <h3 className="font-bold mb-3 border-b border-white/20 pb-2">✨ Perspectiva Estratégica IA</h3>
-            <div className="text-sm opacity-95"><FormattedText text={globalAnalysis.data} /></div>
+            <div className="text-sm opacity-95"><FormattedText text={globalAnalysis.data || ""} /></div>
           </div>
         )}
 
@@ -264,7 +269,7 @@ export default function App() {
               <button onClick={() => setActionPlanModal(p => ({...p, isOpen: false}))} className="text-gray-400 text-lg">&times;</button>
             </div>
             <div className="p-4 text-[13px] text-gray-700">
-              {actionPlanModal.isLoading ? "Cargando..." : <FormattedText text={actionPlanModal.data} />}
+              {actionPlanModal.isLoading ? "Cargando..." : <FormattedText text={actionPlanModal.data || ""} />}
             </div>
           </div>
         </div>
