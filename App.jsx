@@ -58,7 +58,7 @@ const fetchWithRetry = async (url, options, retries = 5) => {
 
 const callGeminiAPI = async (prompt, systemInstruction) => {
   // NOTA: Reemplaza las comillas vacías con tu API Key de Google AI Studio
-  const apiKey = ""; 
+  const apiKey = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   
   const payload = {
