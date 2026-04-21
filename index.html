@@ -18,6 +18,7 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .tab-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-900">
@@ -26,76 +27,145 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- DATOS DEL GRÁFICO ---
-        const groupedData = [
-          {
-            category: 'Desempeños de la Especialidad',
-            color: '#0D9488',
-            items: [
-              { name: 'Uso de Herramientas y Criterios en Contexto Incierto', values: [75, 75, 96, 93, 87] },
-              { name: 'Adaptabilidad a Cambios Económicos', values: [53, 69, 48, 84, 74] },
-              { name: 'Análisis de Escenarios para la Toma de Decisiones', values: [69, 69, 71, 87, 86] }
+        // --- 1. DATOS PREDEFINIDOS (Integrando valores reales y exactos de los Excel) ---
+        const DATA_POR_DISCIPLINA = {
+            'Finanzas': [
+              { category: 'Desempeños de la Especialidad', color: '#0D9488', items: [
+                  { name: 'Uso de Herramientas y Criterios en Contexto Incierto', values: [75, 75, 96, 93, 87] },
+                  { name: 'Adaptabilidad a Cambios Económicos', values: [53, 69, 48, 84, 74] },
+                  { name: 'Análisis de Escenarios para la Toma de Decisiones', values: [69, 69, 71, 87, 86] }
+              ]},
+              { category: 'Desempeños Comunicación Efectiva', color: '#2563EB', items: [
+                  { name: 'Análisis de contenido', values: [82, 50, 55, 71, 56] },
+                  { name: 'Argumentación', values: [51, 44, 8, 46, 83] },
+                  { name: 'Producción de discursos', values: [53, 56, 56, 67, 64] },
+                  { name: 'Voz propia y creativa', values: [29, 6, 0, 6, 40] }
+              ]},
+              { category: 'Desempeños Discernimiento Ético', color: '#EA580C', items: [
+                  { name: 'Delimitación de dilemas éticos', values: [16, 0, 0, 0, 0] },
+                  { name: 'Proyección de significados y consecuencias', values: [19, 13, 1, 6, 23] },
+                  { name: 'Integración de componente ético en la toma de decisiones', values: [10, 19, 1, 0, 41] }
+              ]}
+            ],
+            'Gestión de Personas': [
+              { category: 'Desempeños de la Especialidad', color: '#0D9488', items: [
+                  { name: 'Descripción de conceptos y definiciones', values: [100, 100, 100, 100, 100] },
+                  { name: 'Aplicación de Herramientas de Gestión de Personas', values: [54, 77, 46, 67, 73] },
+                  { name: 'Comprensión de Modelos de Gestión de Personas', values: [100, 100, 58, 83, 83] },
+                  { name: 'Adaptabilidad en Diversas Situaciones Organizacionales', values: [100, 100, 50, 89, 67] }
+              ]},
+              { category: 'Desempeños Comunicación Efectiva', color: '#2563EB', items: [
+                  { name: 'Análisis de contenido', values: [100, 100, 83, 89, 100] },
+                  { name: 'Argumentación', values: [75, 30, 58, 51, 57] },
+                  { name: 'Producción de discursos', values: [75, 50, 58, 78, 75] },
+                  { name: 'Voz propia y creativa', values: [25, 0, 4, 33, 49] }
+              ]},
+              { category: 'Desempeños Discernimiento Ético', color: '#EA580C', items: [
+                  { name: 'Delimitación de dilemas éticos', values: [42, 20, 8, 35, 39] },
+                  { name: 'Proyección de significados y consecuencias', values: [46, 50, 8, 46, 34] },
+                  { name: 'Integración de componente ético en la toma de decisiones', values: [29, 30, 13, 22, 45] }
+              ]}
+            ],
+            'Marketing': [
+              { category: 'Desempeños de la Especialidad', color: '#0D9488', items: [
+                  { name: 'Diagnóstico', values: [100, 15, 91, 97, 68] },
+                  { name: 'Detección de Oportunidades', values: [75, 0, 64, 62, 82] },
+                  { name: 'Definiciones estratégicas', values: [69, 0, 57, 73, 54] },
+                  { name: 'Investigación de mercados', values: [85, 70, 43, 76, 65] },
+                  { name: 'Toma de decisiones tácticas (Marketing Mix)', values: [26, 0, 21, 65, 31] }
+              ]},
+              { category: 'Desempeños Comunicación Efectiva', color: '#2563EB', items: [
+                  { name: 'Análisis de contenido', values: [100, 50, 75, 100, 92] },
+                  { name: 'Argumentación', values: [50, 0, 48, 67, 44] },
+                  { name: 'Producción de discursos', values: [75, 50, 50, 100, 75] },
+                  { name: 'Voz propia y creativa', values: [3, 0, 8, 29, 7] }
+              ]},
+              { category: 'Desempeños Discernimiento Ético', color: '#EA580C', items: [
+                  { name: 'Delimitación de dilemas éticos', values: [7, 0, 3, 0, 27] },
+                  { name: 'Proyección de significados y consecuencias', values: [7, 0, 3, 0, 27] },
+                  { name: 'Integración de componente ético en la toma de decisiones', values: [7, 0, 8, 21, 23] }
+              ]}
+            ],
+            'Administración': [
+              { category: 'Desempeños de la Especialidad', color: '#0D9488', items: [
+                  { name: 'Diseño de Estrategias Financieras y Planes de Acción', values: [43, 25, 49, 69, 57] },
+                  { name: 'Gestión Integral de Problemáticas Organizacionales', values: [43, 50, 57, 71, 54] },
+                  { name: 'Innovación y Creación de Valor', values: [29, 8, 12, 18, 18] }
+              ]},
+              { category: 'Desempeños Comunicación Efectiva', color: '#2563EB', items: [
+                  { name: 'Análisis de contenido', values: [100, 100, 70, 83, 100] },
+                  { name: 'Argumentación', values: [85, 100, 65, 80, 79] },
+                  { name: 'Producción de discursos', values: [75, 100, 83, 83, 100] },
+                  { name: 'Voz propia y creativa', values: [0, 17, 8, 12, 0] }
+              ]},
+              { category: 'Desempeños Discernimiento Ético', color: '#EA580C', items: [
+                  { name: 'Delimitación de dilemas éticos', values: [0, 0, 0, 13, 0] },
+                  { name: 'Proyección de significados y consecuencias', values: [5, 0, 6, 13, 0] },
+                  { name: 'Integración de componente ético en la toma de decisiones', values: [7, 17, 0, 25, 18] }
+              ]}
             ]
-          },
-          {
-            category: 'Desempeños Comunicación Efectiva',
-            color: '#2563EB',
-            items: [
-              { name: 'Análisis de contenido', values: [82, 50, 55, 71, 56] },
-              { name: 'Argumentación', values: [51, 44, 8, 46, 83] },
-              { name: 'Producción de discursos', values: [53, 56, 56, 67, 64] },
-              { name: 'Voz propia y creativa', values: [29, 6, 0, 6, 40] }
-            ]
-          },
-          {
-            category: 'Desempeños Discernimiento Ético',
-            color: '#EA580C',
-            items: [
-              { name: 'Delimitación de dilemas éticos', values: [16, 0, 0, 0, 0] },
-              { name: 'Proyección de significados y consecuencias', values: [19, 13, 1, 6, 23] },
-              { name: 'Integración de componente ético en la toma de decisiones', values: [10, 19, 1, 0, 41] }
-            ]
-          }
-        ];
+        };
 
         const years = [2021, 2022, 2023, 2024, 2025];
 
-        // --- TEXTOS PREDEFINIDOS (SIN CONEXIÓN A INTERNET) ---
-        
-        const TEXTO_ANALISIS_GLOBAL = `El análisis de la estructura de 75 exámenes de grado (2021-2025) muestra una sólida base en los **Desempeños de la Especialidad (64%)**, con preguntas analíticas bien logradas en diversas áreas. Esta cifra refleja la profundidad técnica y el compromiso con la excelencia que caracteriza a la labor académica de la Facultad.
+        // --- 2. SÍNTESIS EJECUTIVA GLOBAL POR DISCIPLINA ---
+        const ANALISIS_GLOBAL_POR_DISCIPLINA = {
+            'Finanzas': `El análisis de los exámenes de grado muestra una sólida base en la **Especialidad**. En Finanzas, se observa un diseño con alta carga analítica o técnica, caracterizado por una estructura binaria: una sección conceptual y otra de modelado financiero complejo con cálculos de valoración y riesgo.
 
-Sin embargo, se identifica una oportunidad estratégica de enriquecimiento en **Comunicación Efectiva (56%)** y, de manera particular, en **Discernimiento Ético (15%)**. Se sugiere incorporar metodologías evaluativas que exijan fundamentación argumentativa y la anticipación de dilemas éticos reales en escenarios de negocios, alineándose con los estándares globales en la formación de líderes corporativos.`;
+**Enfoque Sugerido para 2026:**
+Se recomienda diversificar los ítems hacia la **Comunicación Efectiva** y el **Discernimiento Ético** (con especial urgencia en la delimitación de dilemas éticos, que registra un 0% constante), exigiendo a los estudiantes fundamentar cualitativamente sus decisiones numéricas y ponderar las consecuencias a largo plazo (sostenibilidad, stakeholders) de la rentabilidad proyectada.`,
+            
+            'Marketing': `En el área de **Marketing**, la evidencia muestra una gran oscilación en la matriz de evaluación (destacando las abruptas caídas a 0% en el año 2022). Recientemente se ha impulsado la recuperación de la **Especialidad** mediante la incorporación estructurada de análisis de casos enfocados en diagnóstico y oportunidades de mercado.
 
-        const TEXTOS_PLANES_MEJORA = {
-            'Uso de Herramientas y Criterios en Contexto Incierto': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Herramientas Ágiles:** Incorporar casos donde la información sea deliberadamente incompleta, forzando al estudiante a justificar sus supuestos.\n\n**Simulación de Crisis:** Plantear escenarios donde las variables críticas cambien a mitad del examen, evaluando la capacidad de re-cálculo y adaptación del criterio financiero.`,
+**Enfoque Sugerido para 2026:**
+Se visualiza un alto potencial para elevar la **Comunicación Efectiva** (donde la "Voz Propia" apenas alcanza un 7%) invitando al estudiante a proponer ensayos o propuestas de negocios que aborden explícitamente dilemas de carácter ético en escenarios multivariables, como publicidad responsable y sostenibilidad.`,
             
-            // Texto detallado y solicitado específicamente por el usuario
-            'Adaptabilidad a Cambios Económicos': `Se sugieren los siguientes enfoques estratégicos:
+            'Administración': `En la línea de **Administración**, el informe indica una predominancia de preguntas de desarrollo analítico y comentarios cualitativos, lo que explica los altos niveles en "Análisis de Contenido" y "Producción de Discursos" (llegando frecuentemente al 100%). Esto exige al estudiante un fuerte ejercicio de comprensión de la estrategia corporativa integral.
 
-**Integración de Escenarios Prospectivos Dinámicos:** Consiste en invitar al estudiante a proyectar soluciones ante variaciones de mercado simuladas en tiempo real. Un excelente punto de partida es el modelo del Examen de Marketing (Otoño 2021), donde se desafió al alumno con la pregunta: *“¿A qué tipo de estrategia de crecimiento corresponde...?”*. Replicar este nivel de análisis permite que el estudiante no solo identifique la teoría, sino que seleccione la ruta estratégica más resiliente frente a la volatilidad económica.
+**Enfoque Sugerido para 2026:**
+A pesar de la fuerte base comunicativa, existe una brecha crítica en "Innovación y Creación de Valor" (estancada bajo el 20%) y en todo el bloque de **Discernimiento Ético** (rozando el 0%). Se sugiere consolidar los casos mediante el requerimiento explícito de posturas innovadoras frente a dilemas directivos reales, logrando así la integración orgánica de la ética en el directorio.`,
 
-**Evaluación del Impacto Organizacional Multidimensional:** Se propone vincular los cambios macroeconómicos con respuestas operativas concretas de la firma. Un referente de vanguardia es el Examen de RRHH (Verano 2025), cuyo diseño solicitaba: *“Proponga al menos dos objetivos organizacionales...”*. Seguir esta línea de evaluación permite medir la capacidad del futuro profesional para traducir el contexto económico en acciones tácticas y estratégicas que aseguren la sostenibilidad institucional.
+            'Gestión de Personas': `Los exámenes de **Gestión de Personas** presentan una estructura altamente teórica, evidenciada por un 100% ininterrumpido en la "Descripción de conceptos y definiciones". Han integrado con éxito secciones de desarrollo y análisis de casos, lo que favorece inherentemente la evaluación de la **Comunicación Efectiva**.
 
-Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, representan la base ideal para seguir avanzando hacia los estándares de evaluación más exigentes a nivel global.`,
-            
-            'Análisis de Escenarios para la Toma de Decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Casos de Estudio Multivariables:** Diseñar preguntas que obliguen al estudiante a ponderar múltiples variables financieras y de marketing simultáneamente.\n\n**Defensa de Estrategias:** Evaluar la capacidad de defender una decisión estratégica ante alternativas de inversión competitivas.`,
-            
-            'Análisis de contenido': `Se sugieren los siguientes enfoques estratégicos:\n\n**Diversificación de Instrumentos:** Incorporar de manera progresiva ensayos cortos o propuestas de negocios escritas en secciones específicas del examen.\n\n**Rúbricas de Comunicación:** Evaluar explícitamente la estructura, claridad y capacidad de síntesis en las respuestas de desarrollo extenso.`,
-            
-            'Argumentación': `Se sugieren los siguientes enfoques estratégicos:\n\n**Defensa de Casos:** Integrar instancias donde el estudiante deba justificar teóricamente sus decisiones numéricas.\n\n**Contraste de Posturas:** Solicitar al estudiante que analice y refute una estrategia opuesta a la suya, demostrando dominio de la argumentación en negocios.`,
-            
-            'Producción de discursos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Adaptación de Audiencia:** Pedir al estudiante que estructure su respuesta técnica como si fuera un informe dirigido a un Directorio o a inversionistas no especialistas.\n\n**Uso de Lenguaje Disciplinar:** Fomentar y evaluar la precisión en la terminología técnica de negocios en todas las áreas del examen.`,
-            
-            'Voz propia y creativa': `Se sugieren los siguientes enfoques estratégicos:\n\n**Resolución Creativa de Problemas:** Incluir ítems de final abierto donde se premie la originalidad y la viabilidad de la solución propuesta.\n\n**Propuestas de Innovación:** Evaluar la capacidad de identificar nuevos nichos de mercado o mejoras disruptivas de procesos organizacionales.`,
-            
-            'Delimitación de dilemas éticos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Inclusión de Conflictos de Interés:** Diseñar casos donde el estudiante deba identificar claramente las partes afectadas por una decisión corporativa y los posibles sesgos de los directivos.\n\n**Análisis Normativo vs. Ético:** Preguntar explícitamente por las zonas grises donde lo estrictamente legal no coincide necesariamente con lo ético o lo sostenible.`,
-            
-            'Proyección de significados y consecuencias': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Sostenibilidad:** Incorporar preguntas sobre el impacto ambiental, social y de gobernanza (ESG) a largo plazo de los proyectos de inversión.\n\n**Mapeo de Stakeholders:** Exigir que las respuestas consideren de manera obligatoria las consecuencias operativas para empleados, comunidad y medio ambiente.`,
-            
-            'Integración de componente ético en la toma de decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Dilemas Integrados:** No aislar la dimensión ética en una sola pregunta al final del examen, sino hacer que la viabilidad general del proyecto evaluado dependa de su solidez ética.\n\n**Ponderación Estratégica:** Asignar un porcentaje explícito de la calificación de la sección a la correcta ponderación de los factores éticos involucrados en la toma de decisiones.`
+**Enfoque Sugerido para 2026:**
+Para enriquecer la matriz y reducir la dependencia de lo puramente conceptual, se sugiere profundizar en el **Discernimiento Ético** y la "Voz propia", aprovechando la naturaleza humana del área para plantear dilemas en procesos de desvinculación o equidad, exigiendo al alumno anticipar consecuencias sociales e integrar principios normativos en su estrategia.`
         };
 
-        // Función simuladora para dar el efecto de "procesando" (Delay de medio segundo)
+        // --- 3. PLANES DE MEJORA INDIVIDUALES PREDEFINIDOS ---
+        const TEXTOS_PLANES_MEJORA = {
+            // Finanzas
+            'Uso de Herramientas y Criterios en Contexto Incierto': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Herramientas Ágiles:** Incorporar casos donde la información sea deliberadamente incompleta, forzando al estudiante a justificar sus supuestos.\n\n**Simulación de Crisis:** Plantear escenarios donde las variables críticas cambien a mitad del examen, evaluando la capacidad de re-cálculo y adaptación del criterio financiero.`,
+            'Adaptabilidad a Cambios Económicos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Integración de Escenarios Prospectivos Dinámicos:** Invitar al estudiante a proyectar soluciones ante variaciones de mercado simuladas en tiempo real. Replicar modelos analíticos exitosos permite que el estudiante seleccione la ruta estratégica más resiliente frente a la volatilidad económica.\n\n**Evaluación del Impacto Multidimensional:** Vincular los cambios macroeconómicos con respuestas operativas concretas de la firma, midiendo la capacidad para traducir el contexto en acciones tácticas.`,
+            'Análisis de Escenarios para la Toma de Decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Casos de Estudio Multivariables:** Diseñar preguntas que obliguen al estudiante a ponderar múltiples variables de mercado, personas y finanzas simultáneamente.\n\n**Defensa de Estrategias:** Evaluar la capacidad de defender una decisión gerencial ante alternativas competitivas, argumentando pros y contras operativos.`,
+            
+            // Gestión de Personas
+            'Descripción de conceptos y definiciones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Transición a Casos Aplicados:** Si bien el dominio teórico es perfecto (100%), se recomienda sustituir progresivamente las preguntas de definición directa por casos donde el concepto deba ser inferido a partir de una problemática organizacional.`,
+            'Aplicación de Herramientas de Gestión de Personas': `Se sugieren los siguientes enfoques estratégicos:\n\n**Simulación de Procesos HR:** Integrar ejercicios prácticos como el diseño de una pauta de entrevista por competencias o la estructuración de una matriz de desempeño para un cargo crítico del caso de estudio.`,
+            'Comprensión de Modelos de Gestión de Personas': `Se sugieren los siguientes enfoques estratégicos:\n\n**Auditoría Organizacional:** Exigir al estudiante que utilice un modelo teórico (ej. Modelo de Ulrich o de Gestión del Cambio) para diagnosticar las fallas estructurales de la empresa presentada en el examen.`,
+            'Adaptabilidad en Diversas Situaciones Organizacionales': `Se sugieren los siguientes enfoques estratégicos:\n\n**Gestión de Crisis:** Incorporar escenarios de cambio abrupto en la empresa (como fusiones, recortes de personal o crisis de reputación) para evaluar la flexibilidad y empatía estratégica del alumno.`,
+
+            // Marketing
+            'Diagnóstico': `Se sugieren los siguientes enfoques estratégicos:\n\n**Análisis Holístico de Mercado:** Proveer conjuntos de datos ambiguos (cuantitativos y cualitativos) y requerir que el alumno identifique la causa raíz del problema comercial, no solo los síntomas.\n\n**Diagnóstico Competitivo:** Evaluar la capacidad de detectar vulnerabilidades en el posicionamiento actual frente a las amenazas de la industria.`,
+            'Detección de Oportunidades': `Se sugieren los siguientes enfoques estratégicos:\n\n**Escaneo de Tendencias:** Presentar macro-tendencias (tecnológicas, demográficas) y solicitar la fundamentación de un nuevo nicho de mercado viable.\n\n**Innovación de Valor:** Preguntar explícitamente cómo la empresa puede crear un "océano azul" o diferenciarse sustancialmente de la competencia actual.`,
+            'Definiciones estratégicas': `Se sugieren los siguientes enfoques estratégicos:\n\n**Alineamiento Estratégico:** Requerir que el alumno construya una propuesta de valor o una declaración de posicionamiento clara que se sostenga lógicamente en el diagnóstico elaborado previamente.`,
+            'Investigación de mercados': `Se sugieren los siguientes enfoques estratégicos:\n\n**Diseño Metodológico Crítico:** En lugar de solo interpretar datos, pedir al estudiante que evalúe y corrija el diseño de un estudio de mercado defectuoso presentado en el caso.\n\n**Aplicación de Insights:** Exigir que los datos cualitativos proporcionados se traduzcan directamente en una recomendación de producto o comunicación.`,
+            'Toma de decisiones tácticas (Marketing Mix)': `Se sugieren los siguientes enfoques estratégicos:\n\n**Consistencia del Mix:** Evaluar si las decisiones de precio, plaza y promoción propuestas son coherentes con la estrategia de posicionamiento definida previamente.\n\n**Respuesta Competitiva:** Requerir ajustes tácticos inmediatos (ej. guerra de precios) fundamentando el impacto en el valor de la marca.`,
+
+            // Administración
+            'Diseño de Estrategias Financieras y Planes de Acción': `Se sugieren los siguientes enfoques estratégicos:\n\n**Viabilidad Estructural:** Exigir la formulación de presupuestos básicos o proyecciones operativas que sirvan como respaldo cuantitativo a la estrategia corporativa propuesta.`,
+            'Gestión Integral de Problemáticas Organizacionales': `Se sugieren los siguientes enfoques estratégicos:\n\n**Casos Multidimensionales:** Utilizar metodologías de evaluación que requieran alinear soluciones de operaciones, flujo de caja y gestión del talento en una única respuesta directiva.`,
+            'Innovación y Creación de Valor': `Se sugieren los siguientes enfoques estratégicos:\n\n**Premiación de la Disrupción:** Considerando su bajo nivel de compatibilidad actual, se recomienda incluir ítems que exijan replantear el modelo de ingresos o incorporar transformación digital a modelos de negocio tradicionales.`,
+
+            // Competencias Transversales (Comunicación y Ética)
+            'Análisis de contenido': `Se sugieren los siguientes enfoques estratégicos:\n\n**Diversificación de Instrumentos:** Incorporar de manera progresiva propuestas de negocios escritas o breves ensayos en secciones específicas del examen.\n\n**Rúbricas de Comunicación:** Evaluar explícitamente la estructura, claridad y capacidad de síntesis en las respuestas de desarrollo extenso.`,
+            'Argumentación': `Se sugieren los siguientes enfoques estratégicos:\n\n**Defensa de Casos:** Integrar instancias donde el estudiante deba justificar teóricamente sus decisiones numéricas o de gestión.\n\n**Contraste de Posturas:** Solicitar al estudiante que analice y refute una estrategia opuesta a la suya, demostrando dominio de la argumentación ejecutiva.`,
+            'Producción de discursos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Adaptación de Audiencia:** Pedir al estudiante que estructure su respuesta como si fuera un informe dirigido a un Directorio, clientes o sindicato.\n\n**Uso de Lenguaje Disciplinar:** Fomentar y evaluar la precisión en la terminología técnica de la respectiva especialidad en todo el desarrollo.`,
+            'Voz propia y creativa': `Se sugieren los siguientes enfoques estratégicos:\n\n**Resolución Creativa de Problemas:** Incluir ítems de final abierto donde se premie la originalidad fundamentada y la viabilidad de la solución propuesta.\n\n**Fomento del Juicio Crítico:** Penalizar en la rúbrica las respuestas "de manual" y premiar las perspectivas propias del estudiante sobre el caso.`,
+            'Delimitación de dilemas éticos': `Se sugieren los siguientes enfoques estratégicos:\n\n**Inclusión de Conflictos de Interés:** Diseñar casos donde el estudiante deba identificar claramente las partes afectadas por una decisión corporativa y los posibles sesgos de los directivos.\n\n**Análisis Normativo vs. Ético:** Preguntar explícitamente por las zonas grises donde lo estrictamente legal no coincide necesariamente con lo ético o lo sostenible.`,
+            'Proyección de significados y consecuencias': `Se sugieren los siguientes enfoques estratégicos:\n\n**Evaluación de Sostenibilidad:** Incorporar preguntas sobre el impacto ambiental, social y de gobernanza (ESG) a largo plazo de los planes de la empresa.\n\n**Mapeo de Stakeholders:** Exigir que las respuestas consideren de manera obligatoria las consecuencias para empleados, proveedores, comunidad y medio ambiente.`,
+            'Integración de componente ético en la toma de decisiones': `Se sugieren los siguientes enfoques estratégicos:\n\n**Dilemas Integrados:** No aislar la dimensión ética en una sola pregunta final, sino hacer que la viabilidad general de la estrategia dependa de su solidez moral.\n\n**Ponderación Estratégica:** Asignar un porcentaje explícito de la calificación de la sección a la correcta ponderación de los factores éticos involucrados en la resolución.`
+        };
+
         const simulateDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         // --- COMPONENTES DE UI ---
@@ -138,7 +208,7 @@ Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, repre
                                     }}
                                 ></div>
                                 <span className="text-[8px] font-bold text-slate-400 mt-2">{years[i]}</span>
-                                <div className="absolute -top-8 bg-slate-800 text-white text-[9px] px-1.5 py-1 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none">
+                                <div className="absolute -top-8 bg-slate-800 text-white text-[9px] px-1.5 py-1 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
                                     {v}%
                                 </div>
                             </div>
@@ -150,79 +220,95 @@ Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, repre
 
         function App() {
           const [ready, setReady] = useState(false);
+          const [currentDiscipline, setCurrentDiscipline] = useState('Finanzas');
           const [analysis, setAnalysis] = useState({ loading: false, data: null });
           const [modal, setModal] = useState({ open: false, loading: false, title: '', content: '' });
 
           useEffect(() => {
-            setTimeout(() => setReady(true), 100);
-          }, []);
+            setReady(false);
+            setAnalysis({ loading: false, data: null });
+            
+            const loadAnalysis = async () => {
+              setAnalysis({ loading: true, data: null });
+              await simulateDelay(400);
+              setAnalysis({ loading: false, data: ANALISIS_GLOBAL_POR_DISCIPLINA[currentDiscipline] });
+              setReady(true);
+            };
+            
+            loadAnalysis();
+          }, [currentDiscipline]);
 
-          // Acción simulada para la Síntesis Global
-          const generateGlobalReport = async () => {
-            setAnalysis({ loading: true, data: null });
-            await simulateDelay(600); // Pequeña pausa para efecto visual
-            setAnalysis({ loading: false, data: TEXTO_ANALISIS_GLOBAL });
-          };
-
-          // Acción simulada para los Planes de Mejora Individuales
           const openActionPlan = async (name) => {
             setModal({ open: true, loading: true, title: name, content: '' });
-            await simulateDelay(500); // Pequeña pausa para mostrar el spinner
-            
-            // Busca el texto predefinido, si no existe, muestra un mensaje por defecto
-            const contenidoPredefinido = TEXTOS_PLANES_MEJORA[name] || "Plan de mejora en construcción para esta competencia.";
-            
+            await simulateDelay(400);
+            const contenidoPredefinido = TEXTOS_PLANES_MEJORA[name] || `Se sugieren los siguientes enfoques estratégicos:\n\n**Integración de Casos Prácticos:** Vincular esta competencia con la resolución de problemas reales observados en el mercado corporativo actual.\n\n**Evaluación por Rúbrica:** Incorporar indicadores explícitos en las pautas de corrección para visibilizar y cuantificar el logro de este desempeño específico.`;
             setModal(prev => ({ ...prev, loading: false, content: contenidoPredefinido }));
           };
+
+          const activeData = DATA_POR_DISCIPLINA[currentDiscipline];
+          const disciplinesList = Object.keys(DATA_POR_DISCIPLINA);
 
           return (
             <div className="max-w-4xl mx-auto p-4 md:py-12">
               <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
                 
-                {/* Header */}
-                <div className="p-8 md:p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                {/* Header Institucional */}
+                <div className="p-8 md:p-12 pb-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                        <span className="px-2 py-1 bg-blue-600 text-white text-[9px] font-black rounded uppercase tracking-widest">AoL v2026</span>
+                        <span className="px-2 py-1 bg-blue-600 text-white text-[9px] font-black rounded uppercase tracking-widest">Centro de Enseñanza y Aprendizaje</span>
                         <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Universidad de Chile • FEN</p>
                     </div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard de Compatibilidad</h1>
-                    <p className="text-slate-500 text-sm">Validación de instrumentos de evaluación de egreso (2021-2025)</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">IC Licenciatura en Administración</h1>
+                    <p className="text-slate-500 text-sm">Compatibilidad histórica de exámenes de grado (2021-2025)</p>
                   </div>
-                  <button 
-                    onClick={generateGlobalReport}
-                    disabled={analysis.loading}
-                    className="group relative bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm hover:bg-blue-600 transition-all flex items-center gap-3 disabled:opacity-50"
-                  >
-                    {analysis.loading ? "Procesando..." : "✨ Síntesis Inteligente"}
-                  </button>
                 </div>
 
-                {/* Síntesis AI (Ahora con datos predefinidos) */}
-                {analysis.data && (
-                  <div className="mx-8 md:mx-12 mt-8 p-8 bg-blue-50 rounded-3xl border border-blue-100 animate-fade-in">
-                    <h2 className="text-blue-900 font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span> Perspectiva Estratégica
-                    </h2>
-                    <TextFormatter text={analysis.data} />
-                  </div>
-                )}
-
-                {/* Categorías */}
-                <div className="p-8 md:p-12 space-y-16">
-                  {groupedData.map((cat, i) => (
-                    <div key={i} className="animate-fade-in" style={{ animationDelay: `${i*0.1}s` }}>
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="h-8 w-1 rounded-full" style={{ backgroundColor: cat.color }}></div>
-                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">{cat.category}</h2>
-                      </div>
-                      <div className="bg-slate-50/50 rounded-[2rem] p-6 md:p-10 border border-slate-100 shadow-sm">
-                        {cat.items.map((item, j) => (
-                          <BarChartRow key={j} {...item} color={cat.color} active={ready} onAction={openActionPlan} />
-                        ))}
-                      </div>
-                    </div>
+                {/* Barra de Navegación de Disciplinas */}
+                <div className="bg-slate-50 px-8 md:px-12 py-5 border-b border-slate-100 flex gap-3 overflow-x-auto custom-scroll shadow-inner">
+                  {disciplinesList.map(disc => (
+                    <button 
+                      key={disc}
+                      onClick={() => setCurrentDiscipline(disc)}
+                      className={`whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest tab-transition ${
+                        currentDiscipline === disc 
+                        ? 'bg-[#1E3A8A] text-white shadow-lg ring-2 ring-[#1E3A8A] ring-offset-2' 
+                        : 'bg-white text-slate-400 border border-slate-200 hover:border-blue-300 hover:text-blue-600 shadow-sm'
+                      }`}
+                    >
+                      {disc}
+                    </button>
                   ))}
+                </div>
+
+                {/* Contenido (Forzado a re-renderizar al cambiar disciplina) */}
+                <div key={currentDiscipline}>
+                    {/* Síntesis Ejecutiva */}
+                    {analysis.data && (
+                      <div className="mx-8 md:mx-12 mt-10 p-8 bg-blue-50 rounded-3xl border border-blue-100 animate-fade-in">
+                        <h2 className="text-blue-900 font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Síntesis Ejecutiva del Informe: {currentDiscipline}
+                        </h2>
+                        <TextFormatter text={analysis.data} />
+                      </div>
+                    )}
+
+                    {/* Gráficos y Categorías */}
+                    <div className="p-8 md:p-12 space-y-16">
+                      {activeData.map((cat, i) => (
+                        <div key={i} className="animate-fade-in" style={{ animationDelay: `${i*0.1}s` }}>
+                          <div className="flex items-center gap-4 mb-8">
+                            <div className="h-8 w-1 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">{cat.category}</h2>
+                          </div>
+                          <div className="bg-slate-50/50 rounded-[2rem] p-6 md:p-10 border border-slate-100 shadow-sm">
+                            {cat.items.map((item, j) => (
+                              <BarChartRow key={j} {...item} color={cat.color} active={ready} onAction={openActionPlan} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                 </div>
 
                 <footer className="p-10 bg-slate-50 text-center border-t border-slate-100">
@@ -230,7 +316,7 @@ Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, repre
                 </footer>
               </div>
 
-              {/* MODAL CON RESPUESTAS PREDEFINIDAS */}
+              {/* MODAL PLAN DE MEJORA */}
               {modal.open && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                   <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
@@ -251,7 +337,7 @@ Estos modelos de preguntas analíticas, que ustedes ya aplican con éxito, repre
                       {modal.loading ? (
                         <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-4">
                           <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                          <p className="text-xs font-bold uppercase tracking-widest">Consultando experto...</p>
+                          <p className="text-xs font-bold uppercase tracking-widest">Cargando estrategia...</p>
                         </div>
                       ) : (
                         <div className="animate-fade-in">
