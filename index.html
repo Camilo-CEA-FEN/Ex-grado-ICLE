@@ -3,29 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evolución Compatibilidad FEN</title>
+    <title>Dashboard AoL - FEN U. de Chile</title>
     
-    <!-- Librería de diseño: Tailwind CSS -->
+    <!-- Librerías Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Librerías de React para que funcione en un solo archivo -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body class="bg-[#F8FAFC]">
     
-    <!-- Aquí se inyectará nuestra aplicación -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Scrollbar suave para el modal */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#F1F5F9] text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- DATOS ---
+        // --- DATOS DEL INFORME ---
         const groupedData = [
           {
             category: 'Desempeños de la Especialidad',
-            color: '#319C91',
+            color: '#0D9488',
             items: [
               { name: 'Uso de Herramientas y Criterios en Contexto Incierto', values: [75, 75, 96, 93, 87] },
               { name: 'Adaptabilidad a Cambios Económicos', values: [53, 69, 48, 84, 74] },
@@ -34,7 +41,7 @@
           },
           {
             category: 'Desempeños Comunicación Efectiva',
-            color: '#3372B5',
+            color: '#2563EB',
             items: [
               { name: 'Análisis de contenido', values: [82, 50, 55, 71, 56] },
               { name: 'Argumentación', values: [51, 44, 8, 46, 83] },
@@ -44,7 +51,7 @@
           },
           {
             category: 'Desempeños Discernimiento Ético',
-            color: '#D35400',
+            color: '#EA580C',
             items: [
               { name: 'Delimitación de dilemas éticos', values: [16, 0, 0, 0, 0] },
               { name: 'Proyección de significados y consecuencias', values: [19, 13, 1, 6, 23] },
@@ -55,246 +62,235 @@
 
         const years = [2021, 2022, 2023, 2024, 2025];
 
-        const chartConfig = {
-          width: 500,
-          height: 80,
-          margin: { top: 15, right: 15, bottom: 20, left: 40 }
-        };
-
-        // --- SERVICIO DE API GEMINI ---
-        const fetchWithRetry = async (url, options, retries = 5) => {
-          let delay = 1000;
-          for (let i = 0; i < retries; i++) {
-            try {
-              const response = await fetch(url, options);
-              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-              return await response.json();
-            } catch (error) {
-              if (i === retries - 1) throw error;
-              await new Promise(resolve => setTimeout(resolve, delay));
-              delay *= 2;
-            }
-          }
-        };
-
+        // --- LÓGICA DE API CORREGIDA ---
         const callGeminiAPI = async (prompt, systemInstruction) => {
-          // TODO: ¡PEGA TU CLAVE DE GOOGLE AI STUDIO AQUÍ!
-          "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"
-          const apiKey = "PEGAR_AQUI_TU_CLAVE"; 
+          const apiKey = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // <--- PEGAR CLAVE AQUÍ
+          
+          if (apiKey.includes("PEGAR_AQUI")) {
+            return "Error: La API Key no ha sido configurada correctamente en el código.";
+          }
           
           const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
           
-          const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] }
-          };
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seg timeout
 
           try {
-            const data = await fetchWithRetry(url, {
+            const response = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
+              signal: controller.signal,
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+              })
             });
-            return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Ocurrió un inconveniente al procesar la solicitud.";
-          } catch (error) {
-            console.error("Error al contactar con la API:", error);
-            return "Error de conexión. Por favor, intenta nuevamente más tarde.";
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error?.message || "Error en la respuesta de la API");
+            }
+
+            const data = await response.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            return text || "La IA no devolvió contenido útil.";
+            
+          } catch (e) {
+            console.error("API Error:", e);
+            if (e.name === 'AbortError') return "La conexión tardó demasiado. Por favor, intenta de nuevo.";
+            return `Problema de conexión: ${e.message}. Revisa que tu API Key sea válida y tengas acceso a Internet.`;
           }
         };
 
-        // --- COMPONENTES AUXILIARES ---
+        // --- COMPONENTES ---
         const FormattedText = ({ text }) => {
-          if (typeof text !== 'string' || !text) return null;
-          
-          return text.split('\n').map((line, i) => {
-            if (!line.trim()) return <br key={i} />;
-            const parts = line.split(/(\*\*.*?\*\*)/g);
-            return (
-              <p key={i} className="mb-2 leading-relaxed">
-                {parts.map((part, j) => {
-                  if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={j} className="font-bold">{part.slice(2, -2)}</strong>;
-                  }
-                  return part;
-                })}
-              </p>
-            );
-          });
+            if (!text) return null;
+            return text.split('\n').map((line, i) => {
+                if (!line.trim()) return <br key={i} />;
+                // Manejo básico de negritas
+                const processed = line.split(/(\*\*.*?\*\*)/).map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={j} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                    }
+                    return part;
+                });
+                return <p key={i} className="mb-2 text-slate-700 leading-relaxed">{processed}</p>;
+            });
         };
 
-        const MiniChartRow = ({ name, values, category, color, isLoaded, rowIndex, onGenerateActionPlan }) => {
-          const [hoveredIndex, setHoveredIndex] = useState(null);
-          const [animationDone, setAnimationDone] = useState(false);
-
-          useEffect(() => {
-            if (isLoaded) {
-              const timer = setTimeout(() => setAnimationDone(true), 1500 + rowIndex * 80);
-              return () => clearTimeout(timer);
-            }
-          }, [isLoaded, rowIndex]);
-
-          const { width, height, margin } = chartConfig;
-          const innerWidth = width - margin.left - margin.right;
-          const innerHeight = height - margin.top - margin.bottom;
-          const baselineY = margin.top + innerHeight;
-          const barWidth = 24;
-          const spacing = innerWidth / values.length;
+        const ChartRow = ({ name, values, color, isLoaded, onAction }) => {
+          const [hover, setHover] = useState(null);
+          const maxH = 60;
 
           return (
-            <div className="group flex flex-col md:flex-row items-center py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors rounded-lg px-2 gap-4 relative">
-              <div className="w-full md:w-1/3 flex flex-col items-start md:items-end justify-center gap-1">
-                <h3 className="text-[13px] font-medium text-gray-700 leading-snug group-hover:text-gray-900 transition-colors text-left md:text-right">
-                  {name}
-                </h3>
+            <div className="flex flex-col md:flex-row items-center py-4 border-b border-slate-100 group">
+              <div className="w-full md:w-1/3 pr-4 mb-3 md:mb-0">
+                <h3 className="text-sm font-semibold text-slate-700 leading-tight group-hover:text-blue-700 transition-colors">{name}</h3>
                 <button 
-                  onClick={(e) => onGenerateActionPlan(name, values, category, color, e)}
-                  className="text-[10px] flex items-center gap-1 bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 px-2 py-1 rounded-full transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                  onClick={(e) => onAction(name, values, color, e)}
+                  className="inline-flex items-center gap-1 text-[10px] mt-2 bg-white border border-slate-200 px-2 py-1 rounded-full text-slate-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-bold uppercase tracking-wider"
                 >
-                  <span>✨</span> Sugerir plan
+                  <span>✨</span> Sugerir Mejora
                 </button>
               </div>
-              
-              <div className="w-full md:w-2/3 relative h-20 flex items-center">
-                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
-                  {[0, 50, 100].map((tick) => {
-                    const y = margin.top + innerHeight - (tick / 100) * innerHeight;
-                    return (
-                      <g key={tick}>
-                        <line x1={margin.left} y1={y} x2={width - margin.right} y2={y} stroke="#e5e7eb" strokeDasharray="2,2" strokeWidth="1" />
-                        <text x={margin.left - 8} y={y + 3} fontSize="10" fill="#9ca3af" textAnchor="end">{tick}%</text>
-                      </g>
-                    );
-                  })}
-
-                  {values.map((val, barIndex) => {
-                    const barHeight = (val / 100) * innerHeight;
-                    const x = margin.left + (barIndex * spacing) + (spacing / 2) - (barWidth / 2);
-                    const targetY = margin.top + innerHeight - barHeight;
-                    const isHovered = hoveredIndex === barIndex;
-
-                    return (
-                      <g key={barIndex} onMouseEnter={() => setHoveredIndex(barIndex)} onMouseLeave={() => setHoveredIndex(null)} className="cursor-pointer">
-                        <rect x={x - 10} y={margin.top} width={barWidth + 20} height={innerHeight} fill="transparent" />
-                        <rect
-                          x={x}
-                          y={isLoaded ? targetY : baselineY}
-                          width={barWidth}
-                          height={isLoaded ? barHeight : 0}
-                          fill={color}
-                          opacity={isHovered ? 0.9 : 0.8}
-                          rx="1.5"
-                          style={{ transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
-                        />
-                        <text x={x + barWidth / 2} y={height - 2} fontSize="10" fill={isHovered ? "#4b5563" : "#9ca3af"} textAnchor="middle">{years[barIndex]}</text>
-                        {isHovered && (
-                          <g>
-                            <rect x={x + barWidth / 2 - 18} y={targetY - 20} width="36" height="16" fill="#1f2937" rx="3" />
-                            <text x={x + barWidth / 2} y={targetY - 8} fontSize="10" fill="white" textAnchor="middle" fontWeight="bold">{val}%</text>
-                          </g>
+              <div className="w-full md:w-2/3 h-20 flex items-end justify-between px-2 gap-2">
+                {values.map((v, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center group/bar relative">
+                    <div 
+                        className="w-full rounded-t-sm transition-all duration-700 ease-out relative"
+                        style={{ 
+                            height: isLoaded ? `${(v/100)*maxH}px` : '2px', 
+                            backgroundColor: v === 0 ? '#e2e8f0' : color,
+                            opacity: hover === i ? 1 : 0.7
+                        }}
+                        onMouseEnter={() => setHover(i)}
+                        onMouseLeave={() => setHover(null)}
+                    >
+                        {hover === i && (
+                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg z-20 shadow-xl pointer-events-none">
+                                {v}%
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                            </div>
                         )}
-                      </g>
-                    );
-                  })}
-                </svg>
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400 mt-2 uppercase">{years[i]}</span>
+                  </div>
+                ))}
               </div>
             </div>
           );
         };
 
-        // --- COMPONENTE PRINCIPAL ---
         function App() {
-          const [isLoaded, setIsLoaded] = useState(false);
-          const [globalAnalysis, setGlobalAnalysis] = useState({ isLoading: false, data: null });
-          const [actionPlanModal, setActionPlanModal] = useState({ isOpen: false, isLoading: false, competency: null, data: null, color: null, position: null });
-          const modalRef = useRef(null);
+          const [loaded, setLoaded] = useState(false);
+          const [aiReport, setAiReport] = useState({ loading: false, content: null });
+          const [modal, setModal] = useState({ show: false, content: null, title: '', loading: false });
 
           useEffect(() => {
-            setIsLoaded(true);
-            const handleClickOutside = (e) => {
-              if (modalRef.current && !modalRef.current.contains(e.target)) {
-                setActionPlanModal(prev => ({ ...prev, isOpen: false }));
-              }
-            };
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => document.removeEventListener("mousedown", handleClickOutside);
+            const timer = setTimeout(() => setLoaded(true), 200);
+            return () => clearTimeout(timer);
           }, []);
 
-          const systemInstruction = `Eres un asesor estratégico de la FEN Universidad de Chile. 
-          REGLAS: 
-          1. NO saludes. 
-          2. Inicia con: "Se sugieren los siguientes enfoques estratégicos:". 
-          3. Tono ejecutivo y respetuoso. 
-          4. Usa viñetas breves.`;
-
-          const handleGenerateGlobalAnalysis = async () => {
-            setGlobalAnalysis({ isLoading: true, data: null });
-            const prompt = `Analiza: Especialidad 64%, Comunicación 56%, Ética 15%. Redacta un resumen ejecutivo de 2 párrafos destacando la solidez en especialidad y la oportunidad de innovar en ética y comunicación.`;
-            const result = await callGeminiAPI(prompt, systemInstruction);
-            setGlobalAnalysis({ isLoading: false, data: result });
+          const handleGlobalAnalysis = async () => {
+            setAiReport({ loading: true, content: null });
+            const prompt = "Analiza estos datos de compatibilidad FEN: Especialidad 64%, Comunicación 56% y Ética 15%. Redacta una síntesis estratégica de 2 párrafos indicando prioridades para 2026.";
+            const res = await callGeminiAPI(prompt, "Eres un consultor senior para la FEN UCHILE. Tu tono es ejecutivo, analítico y profesional.");
+            setAiReport({ loading: false, content: res });
           };
 
-          const handleGenerateActionPlan = async (name, values, category, color, event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setActionPlanModal({ 
-              isOpen: true, 
-              isLoading: true, 
-              competency: name, 
-              color, 
-              position: { top: rect.bottom + window.scrollY + 10, left: rect.left + window.scrollX } 
-            });
-            
-            const prompt = `Sugerencias para '${name}'. Incluye ejemplos como: Examen RRHH (Verano 2025) "Proponga objetivos..." o Marketing (Otoño 2021) "Estrategia de crecimiento...".`;
-            const result = await callGeminiAPI(prompt, systemInstruction);
-            setActionPlanModal(prev => ({ ...prev, isLoading: false, data: result }));
+          const handleActionPlan = async (name, values, color, e) => {
+            setModal({ show: true, loading: true, title: name, content: null });
+            const lastValue = values[values.length - 1];
+            const prompt = `La competencia '${name}' tiene un desempeño del ${lastValue}%. Propón un plan de mejora de 3 puntos específicos que un profesor podría aplicar en sus evaluaciones.`;
+            const res = await callGeminiAPI(prompt, "Eres un experto en currículum universitario. Da sugerencias prácticas y directas.");
+            setModal(prev => ({ ...prev, loading: false, content: res }));
           };
 
           return (
-            <div className="min-h-screen bg-[#F8FAFC] py-8 px-4 flex justify-center relative font-sans">
-              <div className="w-full max-w-5xl bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <div className="max-w-5xl mx-auto my-6 md:my-12 px-4 animate-fade-in">
+              <div className="bg-white shadow-2xl rounded-3xl overflow-hidden border border-slate-200">
                 
-                <div className="mb-8 border-b border-gray-200 pb-6 flex flex-col md:flex-row justify-between items-end gap-4">
+                {/* Header */}
+                <div className="p-6 md:p-10 border-b border-slate-100 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                   <div>
-                    <h4 className="text-[10px] font-bold tracking-widest text-[#1E3A8A] uppercase mb-2">Ingeniería Comercial Licenciatura en Ciencias de la Administración de empresas - FEN Universidad de Chile</h4>
-                    <h1 className="text-2xl font-serif font-bold text-[#111827]">Evolución de la Compatibilidad</h1>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter">AoL System</span>
+                        <span className="text-slate-300 text-xs">|</span>
+                        <p className="text-slate-500 font-semibold text-[10px] uppercase tracking-widest">FEN Universidad de Chile</p>
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Evolución de la Compatibilidad</h1>
+                    <p className="text-slate-500 text-sm mt-1">Análisis de validez de contenido en Exámenes de Grado (2021-2025)</p>
                   </div>
                   <button 
-                    onClick={handleGenerateGlobalAnalysis}
-                    className="bg-[#1E3A8A] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-[#152a61] transition-all"
+                    onClick={handleGlobalAnalysis}
+                    disabled={aiReport.loading}
+                    className="w-full md:w-auto bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    ✨ {globalAnalysis.isLoading ? 'Generando...' : 'Síntesis Ejecutiva IA'}
+                    {aiReport.loading ? (
+                        <span className="flex items-center gap-2">
+                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Analizando...
+                        </span>
+                    ) : "✨ Síntesis Ejecutiva"}
                   </button>
                 </div>
 
-                {globalAnalysis.data && (
-                  <div className="mb-10 bg-[#1E3A8A] p-6 rounded-xl text-white shadow-lg animate-fade-in">
-                    <h3 className="font-bold mb-3 border-b border-white/20 pb-2">✨ Perspectiva Estratégica IA</h3>
-                    <div className="text-sm opacity-95"><FormattedText text={globalAnalysis.data || ""} /></div>
+                {/* AI Section */}
+                {aiReport.content && (
+                  <div className="mx-6 md:mx-10 mt-6 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 animate-fade-in relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M21 7L9 19L3.5 13.5L4.91 12.09L9 16.17L19.59 5.59L21 7Z"/></svg>
+                    </div>
+                    <h2 className="text-blue-900 font-black text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span className="bg-blue-200 p-1 rounded-md text-[10px]">AI</span> PERSPECTIVA ESTRATÉGICA
+                    </h2>
+                    <div className="text-blue-900 text-sm leading-relaxed">
+                      <FormattedText text={aiReport.content} />
+                    </div>
                   </div>
                 )}
 
-                <div className="flex flex-col gap-10">
-                  {groupedData.map((group, i) => (
-                    <div key={i}>
-                      <div className="border-b-[3px] mb-4 pb-1" style={{ borderColor: group.color }}>
-                        <h2 className="text-[14px] font-bold uppercase" style={{ color: group.color }}>{group.category}</h2>
+                {/* Main Content */}
+                <div className="p-6 md:p-10 space-y-12">
+                  {groupedData.map((group, idx) => (
+                    <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 0.15}s` }}>
+                      <div className="flex items-center gap-3 mb-6">
+                          <div className="h-6 w-1.5 rounded-full" style={{ backgroundColor: group.color }}></div>
+                          <h2 className="text-xs font-black uppercase tracking-tighter text-slate-400">{group.category}</h2>
                       </div>
-                      {group.items.map((row, j) => (
-                        <MiniChartRow key={j} {...row} category={group.category} color={group.color} isLoaded={isLoaded} rowIndex={i*10+j} onGenerateActionPlan={handleGenerateActionPlan} />
-                      ))}
+                      <div className="bg-slate-50/30 rounded-3xl p-4 md:p-8 border border-slate-100 shadow-inner">
+                        {group.items.map((item, i) => (
+                          <ChartRow key={i} {...item} color={group.color} isLoaded={loaded} onAction={handleActionPlan} />
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
+                
+                <footer className="p-8 bg-slate-50 border-t text-center">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        Centro de Enseñanza y Aprendizaje (CEA) • FEN UCHILE • 2026
+                    </p>
+                </footer>
               </div>
 
-              {actionPlanModal.isOpen && (
-                <div className="absolute z-50" style={{ top: actionPlanModal.position?.top, left: actionPlanModal.position?.left }}>
-                  <div ref={modalRef} className="bg-white rounded-xl shadow-2xl max-w-[400px] border border-gray-200 overflow-hidden animate-fade-in">
-                    <div className="px-4 py-2 bg-gray-50 border-b flex justify-between items-center">
-                      <span className="text-xs font-bold text-gray-500">Sugerencias Estratégicas</span>
-                      <button onClick={() => setActionPlanModal(p => ({...p, isOpen: false}))} className="text-gray-400 text-lg">&times;</button>
+              {/* Modal Mejorado */}
+              {modal.show && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+                  <div className="bg-white rounded-[2rem] max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="p-6 md:p-8 border-b flex justify-between items-start bg-white">
+                      <div>
+                        <p className="text-blue-600 font-bold text-[10px] uppercase tracking-widest mb-1">Plan de Mejora Sugerido</p>
+                        <h3 className="text-xl font-black text-slate-900 leading-tight">{modal.title}</h3>
+                      </div>
+                      <button 
+                        onClick={() => setModal({show:false})} 
+                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </button>
                     </div>
-                    <div className="p-4 text-[13px] text-gray-700">
-                      {actionPlanModal.isLoading ? "Cargando..." : <FormattedText text={actionPlanModal.data || ""} />}
+                    <div className="p-8 overflow-y-auto custom-scroll flex-1">
+                      {modal.loading ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-4 text-slate-400">
+                          <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          <p className="font-medium">Consultando con la IA...</p>
+                        </div>
+                      ) : (
+                        <div className="animate-fade-in">
+                            <FormattedText text={modal.content} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6 bg-slate-50 border-t flex justify-center">
+                        <button 
+                            onClick={() => setModal({show:false})} 
+                            className="bg-white border border-slate-200 text-slate-900 px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                            Entendido
+                        </button>
                     </div>
                   </div>
                 </div>
@@ -303,7 +299,6 @@
           );
         }
 
-        // Renderizado de React en el contenedor HTML
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
