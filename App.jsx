@@ -222,7 +222,7 @@ export default function App() {
     const result = await callGeminiAPI(prompt, systemInstruction);
     setActionPlanModal(prev => ({ ...prev, isLoading: false, data: result }));
   };
-
+ 
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 px-4 flex justify-center relative font-sans">
       <div className="w-full max-w-5xl bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
