@@ -5,30 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard AoL - FEN U. de Chile</title>
     
-    <!-- Librerías Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Scrollbar suave para el modal */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-[#F1F5F9] text-slate-900">
+<body class="bg-[#F8FAFC] text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
-        // --- DATOS DEL INFORME ---
+        // --- CONFIGURACIÓN ---
+        const API_KEY = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // REEMPLAZAR AQUÍ
+        const MODELO = "gemini-1.5-flash"; // Modelo más estable para evitar errores de conexión
+
         const groupedData = [
           {
             category: 'Desempeños de la Especialidad',
@@ -62,234 +63,200 @@
 
         const years = [2021, 2022, 2023, 2024, 2025];
 
-        // --- LÓGICA DE API CORREGIDA ---
-        const callGeminiAPI = async (prompt, systemInstruction) => {
-          const apiKey = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // <--- PEGAR CLAVE AQUÍ
+        // --- LLAMADA A LA API ---
+        const askGemini = async (prompt, systemInstruction) => {
+          if (API_KEY === "TU_API_KEY_AQUI") return "Error: Debes ingresar tu API Key en el código.";
           
-          if (apiKey.includes("PEGAR_AQUI")) {
-            return "Error: La API Key no ha sido configurada correctamente en el código.";
-          }
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${API_KEY}`;
           
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seg timeout
-
           try {
             const response = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              signal: controller.signal,
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 systemInstruction: { parts: [{ text: systemInstruction }] }
               })
             });
-            
-            clearTimeout(timeoutId);
-            
+
             if (!response.ok) {
-              const errData = await response.json();
-              throw new Error(errData.error?.message || "Error en la respuesta de la API");
+              const error = await response.json();
+              throw new Error(error.error?.message || "Error desconocido");
             }
 
             const data = await response.json();
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            return text || "La IA no devolvió contenido útil.";
-            
+            return data.candidates[0].content.parts[0].text;
           } catch (e) {
-            console.error("API Error:", e);
-            if (e.name === 'AbortError') return "La conexión tardó demasiado. Por favor, intenta de nuevo.";
-            return `Problema de conexión: ${e.message}. Revisa que tu API Key sea válida y tengas acceso a Internet.`;
+            console.error(e);
+            return `Lo siento, hubo un problema al conectar con la IA: ${e.message}. Verifica tu conexión o la validez de tu clave.`;
           }
         };
 
-        // --- COMPONENTES ---
-        const FormattedText = ({ text }) => {
+        // --- COMPONENTES DE UI ---
+        const TextFormatter = ({ text }) => {
             if (!text) return null;
             return text.split('\n').map((line, i) => {
                 if (!line.trim()) return <br key={i} />;
-                // Manejo básico de negritas
-                const processed = line.split(/(\*\*.*?\*\*)/).map((part, j) => {
+                const boldLine = line.split(/(\*\*.*?\*\*)/).map((part, j) => {
                     if (part.startsWith('**') && part.endsWith('**')) {
-                        return <strong key={j} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                        return <strong key={j} className="text-slate-900 font-bold">{part.slice(2, -2)}</strong>;
                     }
                     return part;
                 });
-                return <p key={i} className="mb-2 text-slate-700 leading-relaxed">{processed}</p>;
+                return <p key={i} className="mb-3 text-slate-600 leading-relaxed text-sm md:text-base">{boldLine}</p>;
             });
         };
 
-        const ChartRow = ({ name, values, color, isLoaded, onAction }) => {
-          const [hover, setHover] = useState(null);
-          const maxH = 60;
-
-          return (
-            <div className="flex flex-col md:flex-row items-center py-4 border-b border-slate-100 group">
-              <div className="w-full md:w-1/3 pr-4 mb-3 md:mb-0">
-                <h3 className="text-sm font-semibold text-slate-700 leading-tight group-hover:text-blue-700 transition-colors">{name}</h3>
-                <button 
-                  onClick={(e) => onAction(name, values, color, e)}
-                  className="inline-flex items-center gap-1 text-[10px] mt-2 bg-white border border-slate-200 px-2 py-1 rounded-full text-slate-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-bold uppercase tracking-wider"
-                >
-                  <span>✨</span> Sugerir Mejora
-                </button>
-              </div>
-              <div className="w-full md:w-2/3 h-20 flex items-end justify-between px-2 gap-2">
-                {values.map((v, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center group/bar relative">
-                    <div 
-                        className="w-full rounded-t-sm transition-all duration-700 ease-out relative"
-                        style={{ 
-                            height: isLoaded ? `${(v/100)*maxH}px` : '2px', 
-                            backgroundColor: v === 0 ? '#e2e8f0' : color,
-                            opacity: hover === i ? 1 : 0.7
-                        }}
-                        onMouseEnter={() => setHover(i)}
-                        onMouseLeave={() => setHover(null)}
-                    >
-                        {hover === i && (
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg z-20 shadow-xl pointer-events-none">
-                                {v}%
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
-                            </div>
-                        )}
+        const BarChartRow = ({ name, values, color, active, onAction }) => {
+            const maxH = 64;
+            return (
+                <div className="flex flex-col md:flex-row items-center py-6 border-b border-slate-100 last:border-0 group">
+                    <div className="w-full md:w-2/5 pr-4 mb-4 md:mb-0">
+                        <h3 className="text-sm font-bold text-slate-700 leading-snug group-hover:text-blue-600 transition-colors">{name}</h3>
+                        <button 
+                            onClick={() => onAction(name, values, color)}
+                            className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                            ✨ Plan de Mejora
+                        </button>
                     </div>
-                    <span className="text-[9px] font-bold text-slate-400 mt-2 uppercase">{years[i]}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
+                    <div className="w-full md:w-3/5 h-16 flex items-end justify-between px-2 gap-3">
+                        {values.map((v, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center group/bar relative">
+                                <div 
+                                    className="w-full rounded-t-md transition-all duration-1000 ease-out"
+                                    style={{ 
+                                        height: active ? `${(v/100)*maxH}px` : '4px', 
+                                        backgroundColor: v === 0 ? '#f1f5f9' : color,
+                                        opacity: 0.8
+                                    }}
+                                ></div>
+                                <span className="text-[8px] font-bold text-slate-400 mt-2">{years[i]}</span>
+                                <div className="absolute -top-8 bg-slate-800 text-white text-[9px] px-1.5 py-1 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none">
+                                    {v}%
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
         };
 
         function App() {
-          const [loaded, setLoaded] = useState(false);
-          const [aiReport, setAiReport] = useState({ loading: false, content: null });
-          const [modal, setModal] = useState({ show: false, content: null, title: '', loading: false });
+          const [ready, setReady] = useState(false);
+          const [analysis, setAnalysis] = useState({ loading: false, data: null });
+          const [modal, setModal] = useState({ open: false, loading: false, title: '', content: '' });
 
           useEffect(() => {
-            const timer = setTimeout(() => setLoaded(true), 200);
-            return () => clearTimeout(timer);
+            setTimeout(() => setReady(true), 100);
           }, []);
 
-          const handleGlobalAnalysis = async () => {
-            setAiReport({ loading: true, content: null });
-            const prompt = "Analiza estos datos de compatibilidad FEN: Especialidad 64%, Comunicación 56% y Ética 15%. Redacta una síntesis estratégica de 2 párrafos indicando prioridades para 2026.";
-            const res = await callGeminiAPI(prompt, "Eres un consultor senior para la FEN UCHILE. Tu tono es ejecutivo, analítico y profesional.");
-            setAiReport({ loading: false, content: res });
+          const generateGlobalReport = async () => {
+            setAnalysis({ loading: true, data: null });
+            const prompt = "Genera un resumen ejecutivo de 2 párrafos sobre los datos de compatibilidad AoL de la FEN: Especialidad (64%), Comunicación (56%) y Ética (15%). Sé profesional y sugiere un foco para 2026.";
+            const result = await askGemini(prompt, "Eres un analista de acreditación universitaria de la FEN UCHILE.");
+            setAnalysis({ loading: false, data: result });
           };
 
-          const handleActionPlan = async (name, values, color, e) => {
-            setModal({ show: true, loading: true, title: name, content: null });
-            const lastValue = values[values.length - 1];
-            const prompt = `La competencia '${name}' tiene un desempeño del ${lastValue}%. Propón un plan de mejora de 3 puntos específicos que un profesor podría aplicar en sus evaluaciones.`;
-            const res = await callGeminiAPI(prompt, "Eres un experto en currículum universitario. Da sugerencias prácticas y directas.");
-            setModal(prev => ({ ...prev, loading: false, content: res }));
+          const openActionPlan = async (name, values, color) => {
+            setModal({ open: true, loading: true, title: name, content: '' });
+            const val = values[values.length - 1];
+            const prompt = `La competencia '${name}' tiene un ${val}% de compatibilidad. Da 3 consejos breves y técnicos para que los docentes mejoren la redacción de sus preguntas de examen en esta área.`;
+            const result = await askGemini(prompt, "Eres un experto en evaluación educativa.");
+            setModal(prev => ({ ...prev, loading: false, content: result }));
           };
 
           return (
-            <div className="max-w-5xl mx-auto my-6 md:my-12 px-4 animate-fade-in">
-              <div className="bg-white shadow-2xl rounded-3xl overflow-hidden border border-slate-200">
+            <div className="max-w-4xl mx-auto p-4 md:py-12">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
                 
                 {/* Header */}
-                <div className="p-6 md:p-10 border-b border-slate-100 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter">AoL System</span>
-                        <span className="text-slate-300 text-xs">|</span>
-                        <p className="text-slate-500 font-semibold text-[10px] uppercase tracking-widest">FEN Universidad de Chile</p>
+                <div className="p-8 md:p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                        <span className="px-2 py-1 bg-blue-600 text-white text-[9px] font-black rounded uppercase tracking-widest">AoL v2026</span>
+                        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Universidad de Chile • FEN</p>
                     </div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Evolución de la Compatibilidad</h1>
-                    <p className="text-slate-500 text-sm mt-1">Análisis de validez de contenido en Exámenes de Grado (2021-2025)</p>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard de Compatibilidad</h1>
+                    <p className="text-slate-500 text-sm">Validación de instrumentos de evaluación de egreso (2021-2025)</p>
                   </div>
                   <button 
-                    onClick={handleGlobalAnalysis}
-                    disabled={aiReport.loading}
-                    className="w-full md:w-auto bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={generateGlobalReport}
+                    disabled={analysis.loading}
+                    className="group relative bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm hover:bg-blue-600 transition-all flex items-center gap-3 disabled:opacity-50"
                   >
-                    {aiReport.loading ? (
-                        <span className="flex items-center gap-2">
-                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Analizando...
-                        </span>
-                    ) : "✨ Síntesis Ejecutiva"}
+                    {analysis.loading ? "Procesando..." : "✨ Síntesis Inteligente"}
                   </button>
                 </div>
 
-                {/* AI Section */}
-                {aiReport.content && (
-                  <div className="mx-6 md:mx-10 mt-6 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 animate-fade-in relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M21 7L9 19L3.5 13.5L4.91 12.09L9 16.17L19.59 5.59L21 7Z"/></svg>
-                    </div>
-                    <h2 className="text-blue-900 font-black text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <span className="bg-blue-200 p-1 rounded-md text-[10px]">AI</span> PERSPECTIVA ESTRATÉGICA
+                {/* Síntesis AI */}
+                {analysis.data && (
+                  <div className="mx-8 md:mx-12 mt-8 p-8 bg-blue-50 rounded-3xl border border-blue-100 animate-fade-in">
+                    <h2 className="text-blue-900 font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span> Perspectiva Estratégica
                     </h2>
-                    <div className="text-blue-900 text-sm leading-relaxed">
-                      <FormattedText text={aiReport.content} />
-                    </div>
+                    <TextFormatter text={analysis.data} />
                   </div>
                 )}
 
-                {/* Main Content */}
-                <div className="p-6 md:p-10 space-y-12">
-                  {groupedData.map((group, idx) => (
-                    <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 0.15}s` }}>
-                      <div className="flex items-center gap-3 mb-6">
-                          <div className="h-6 w-1.5 rounded-full" style={{ backgroundColor: group.color }}></div>
-                          <h2 className="text-xs font-black uppercase tracking-tighter text-slate-400">{group.category}</h2>
+                {/* Categorías */}
+                <div className="p-8 md:p-12 space-y-16">
+                  {groupedData.map((cat, i) => (
+                    <div key={i} className="animate-fade-in" style={{ animationDelay: `${i*0.1}s` }}>
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="h-8 w-1 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">{cat.category}</h2>
                       </div>
-                      <div className="bg-slate-50/30 rounded-3xl p-4 md:p-8 border border-slate-100 shadow-inner">
-                        {group.items.map((item, i) => (
-                          <ChartRow key={i} {...item} color={group.color} isLoaded={loaded} onAction={handleActionPlan} />
+                      <div className="bg-slate-50/50 rounded-[2rem] p-6 md:p-10 border border-slate-100 shadow-sm">
+                        {cat.items.map((item, j) => (
+                          <BarChartRow key={j} {...item} color={cat.color} active={ready} onAction={openActionPlan} />
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                <footer className="p-8 bg-slate-50 border-t text-center">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                        Centro de Enseñanza y Aprendizaje (CEA) • FEN UCHILE • 2026
-                    </p>
+
+                <footer className="p-10 bg-slate-50 text-center border-t border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Centro de Enseñanza y Aprendizaje • 2026</p>
                 </footer>
               </div>
 
-              {/* Modal Mejorado */}
-              {modal.show && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
-                  <div className="bg-white rounded-[2rem] max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                    <div className="p-6 md:p-8 border-b flex justify-between items-start bg-white">
-                      <div>
-                        <p className="text-blue-600 font-bold text-[10px] uppercase tracking-widest mb-1">Plan de Mejora Sugerido</p>
+              {/* MODAL (EL RECUADRO QUE TE GUSTÓ) */}
+              {modal.open && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                  <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                    <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white">
+                      <div className="pr-4">
+                        <p className="text-blue-600 font-black text-[10px] uppercase tracking-widest mb-1">Acción Recomendada</p>
                         <h3 className="text-xl font-black text-slate-900 leading-tight">{modal.title}</h3>
                       </div>
                       <button 
-                        onClick={() => setModal({show:false})} 
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                        onClick={() => setModal({open: false})}
+                        className="p-2 bg-slate-100 text-slate-500 rounded-full hover:bg-red-50 hover:text-red-500 transition-all"
                       >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                       </button>
                     </div>
+                    
                     <div className="p-8 overflow-y-auto custom-scroll flex-1">
                       {modal.loading ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-4 text-slate-400">
-                          <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                          <p className="font-medium">Consultando con la IA...</p>
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-4">
+                          <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                          <p className="text-xs font-bold uppercase tracking-widest">Consultando experto...</p>
                         </div>
                       ) : (
                         <div className="animate-fade-in">
-                            <FormattedText text={modal.content} />
+                           <TextFormatter text={modal.content} />
                         </div>
                       )}
                     </div>
-                    <div className="p-6 bg-slate-50 border-t flex justify-center">
+
+                    <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
                         <button 
-                            onClick={() => setModal({show:false})} 
-                            className="bg-white border border-slate-200 text-slate-900 px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                            onClick={() => setModal({open: false})}
+                            className="bg-white border border-slate-200 text-slate-900 px-10 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:shadow-md transition-all active:scale-95"
                         >
-                            Entendido
+                            Cerrar Sugerencia
                         </button>
                     </div>
                   </div>
