@@ -27,8 +27,12 @@
         const { useState, useEffect } = React;
 
         // --- CONFIGURACIÓN ---
-        const API_KEY = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // REEMPLAZAR AQUÍ
-        const MODELO = "gemini-1.5-flash"; // Modelo más estable para evitar errores de conexión
+        // Pega tu clave asegurándote de no dejar espacios en blanco.
+        const API_KEY_RAW = "AIzaSyCVILZ9H4tNsHE-ClQqhz0IeAI6T2k59YM"; // REEMPLAZAR AQUÍ
+        
+        // El sistema limpiará espacios accidentales por ti
+        const API_KEY = API_KEY_RAW.trim(); 
+        const MODELO = "gemini-2.5-flash-preview-09-2025"; 
 
         const groupedData = [
           {
@@ -63,9 +67,11 @@
 
         const years = [2021, 2022, 2023, 2024, 2025];
 
-        // --- LLAMADA A LA API ---
+        // --- LLAMADA A LA API (CON DIAGNÓSTICO AVANZADO) ---
         const askGemini = async (prompt, systemInstruction) => {
-          if (API_KEY === "TU_API_KEY_AQUI") return "Error: Debes ingresar tu API Key en el código.";
+          if (API_KEY === "TU_API_KEY_AQUI" || API_KEY === "") {
+            return "⚠️ Error: Aún no has ingresado tu API Key en el código HTML.";
+          }
           
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${API_KEY}`;
           
@@ -80,15 +86,22 @@
             });
 
             if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.error?.message || "Error desconocido");
+              // Atrapar el error exacto de Google
+              let errorMsg = `Error HTTP ${response.status}`;
+              try {
+                const errorData = await response.json();
+                errorMsg = errorData.error?.message || errorMsg;
+              } catch(e) {
+                errorMsg += " (No se pudo decodificar el detalle de Google).";
+              }
+              throw new Error(errorMsg);
             }
 
             const data = await response.json();
             return data.candidates[0].content.parts[0].text;
           } catch (e) {
-            console.error(e);
-            return `Lo siento, hubo un problema al conectar con la IA: ${e.message}. Verifica tu conexión o la validez de tu clave.`;
+            console.error("Detalle del error:", e);
+            return `**⚠️ Error de conexión con Google:**\n\n${e.message}\n\n*Posibles causas:* \n- La API Key es incorrecta o está desactivada.\n- La 'Generative Language API' no está habilitada en tu proyecto de Google Cloud.`;
           }
         };
 
